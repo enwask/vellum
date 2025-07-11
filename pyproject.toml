@@ -7,7 +7,12 @@ authors = [
     { name = "enwask", email = "enwask@ucf.edu" }
 ]
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "dotenv>=0.9.9",
+    "qdrant-client>=1.14.3",
+    "torch>=2.7.1",
+    "transformers==4.49.0",
+]
 
 [project.scripts]
 vellum = "vellum:main"
