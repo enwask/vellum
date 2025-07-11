@@ -1,0 +1,17 @@
+[project]
+name = "vellum"
+version = "0.1.0"
+description = "RAG on scientific papers"
+readme = "readme.md"
+authors = [
+    { name = "enwask", email = "enwask@ucf.edu" }
+]
+requires-python = ">=3.13"
+dependencies = []
+
+[project.scripts]
+vellum = "vellum:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
