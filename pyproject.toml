@@ -8,9 +8,18 @@ authors = [
 ]
 requires-python = ">=3.13"
 dependencies = [
+    "datasets>=4.0.0",
     "dotenv>=0.9.9",
+    "editables>=0.5",
+    "einops>=0.8.1",
+    "flash-attn>=2.8.1",
+    "hatchling>=1.27.0",
+    "peft>=0.16.0",
+    "pillow>=11.3.0",
+    "psutil>=7.0.0",
     "qdrant-client>=1.14.3",
     "torch>=2.7.1",
+    "torchvision>=0.22.1",
     "transformers==4.49.0",
 ]
 
