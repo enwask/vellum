@@ -116,7 +116,8 @@ class MultiVectorStore[EntryType: Mapping[str, object], MetadataType]:
 
     def query(self,
               vector: list[list[float]],
-              limit: int = 10) -> list[EntryType]:
+              limit: int = 10,
+              threshold: float | None = None) -> list[EntryType]:
         """
         Queries the collection for the most similar multi-vector embeddings
         to the provided vector.
@@ -125,6 +126,7 @@ class MultiVectorStore[EntryType: Mapping[str, object], MetadataType]:
             collection_name=self.name,
             query=vector,
             limit=limit,
+            score_threshold=threshold,
         )
 
         datas: list[EntryType] = [point.payload for point in result.points]  # type: ignore

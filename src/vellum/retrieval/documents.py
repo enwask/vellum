@@ -96,9 +96,10 @@ class DocumentStore(MultiVectorStore[Page, list[Document]]):
             .float().cpu().tolist()
         self.put_many(embeddings, pages, batch_size=batch_size)
 
-    def query_documents(self, query: str, limit: int = 10) -> list[Page]:
+    def query_documents(self, query: str, limit: int = 10,
+                        threshold: float | None = None) -> list[Page]:
         """
         Queries the document store for documents matching the given query.
         """
         query_embedding = embed_queries(query).float().cpu()[0].tolist()
-        return self.query(query_embedding, limit=limit)
+        return self.query(query_embedding, limit=limit, threshold=threshold)
