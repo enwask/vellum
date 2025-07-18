@@ -29,7 +29,7 @@ def make_collection(name: str) -> bool:
     return qdrant_client.create_collection(
         collection_name=name,
         vectors_config=VectorParams(
-            # on_disk=True,
+            on_disk=False,
             size=config.embeddings_vector_size,
             distance=Distance.COSINE,
             multivector_config=MultiVectorConfig(
@@ -39,18 +39,52 @@ def make_collection(name: str) -> bool:
     )
 
 
-class MultiVectorStore[DataType: Mapping[str, object]]:
+class MultiVectorStore[EntryType: Mapping[str, object], MetadataType]:
     def __init__(self, name: str):
         self.name = f'{name}_{config.embeddings_vector_size}'
         if not make_collection(self.name):
             raise RuntimeError(f"Failed to create collection {self.name}")
 
+        self.meta = self._get_meta()
+
     def _make_id(self) -> UUID:
         return uuid4()
 
+    def _put_meta(self, meta: MetadataType) -> None:
+        """
+        Stores collection-level metadata.
+        """
+        qdrant_client.upsert(
+            collection_name=self.name,
+            points=[PointStruct(
+                id=0,
+                vector=[[0] * config.embeddings_vector_size],
+                payload={'meta': meta,}  # type: ignore}
+            )]
+        )
+
+    def _get_meta(self) -> MetadataType | None:
+        """
+        Retrieves collection-level metadata.
+        """
+        result = qdrant_client.retrieve(
+            collection_name=self.name,
+            ids=[0],
+        )
+        if not result:
+            return None
+        return result[0].payload['meta']  # type: ignore
+
+    def post_meta(self) -> None:
+        """
+        Posts collection-level metadata.
+        """
+        if self.meta is not None:
+            self._put_meta(self.meta)
+
     def put_one(self,
                 vector: list[list[float]],
-                meta: DataType) -> None:
+                meta: EntryType) -> None:
         """
         Adds a multi-vector embedding to the collection with associated
         metadata. Returns the point ID of the newly added vector.
@@ -59,7 +93,7 @@ class MultiVectorStore[DataType: Mapping[str, object]]:
 
     def put_many(self,
                  vectors: list[list[list[float]]],
-                 datas: list[DataType],
+                 datas: list[EntryType],
                  batch_size: int = 32) -> None:
         """
         Adds multiple multi-vector embeddings to the collection with
@@ -82,7 +116,7 @@ class MultiVectorStore[DataType: Mapping[str, object]]:
 
     def query(self,
               vector: list[list[float]],
-              limit: int = 10) -> list[DataType]:
+              limit: int = 10) -> list[EntryType]:
         """
         Queries the collection for the most similar multi-vector embeddings
         to the provided vector.
@@ -93,6 +127,6 @@ class MultiVectorStore[DataType: Mapping[str, object]]:
             limit=limit,
         )
 
-        datas: list[DataType] = [point.payload for point in result.points]  # type: ignore
+        datas: list[EntryType] = [point.payload for point in result.points]  # type: ignore
         return datas
 
