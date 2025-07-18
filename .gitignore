@@ -11,3 +11,6 @@ wheels/
 
 # Local configuration files
 .env
+
+# Converted document pages
+assets/*_pages/
