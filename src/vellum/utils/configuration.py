@@ -10,6 +10,7 @@ class Config:
 
     @property
     def chat_model(self) -> str:
-        return 'qwen3:32b'
+        # return 'qwen3:32b'
+        return 'llama4:latest'
 
 config = Config()
