@@ -25,7 +25,7 @@ dependencies = [
 ]
 
 [project.scripts]
-vellum = "vellum:main"
+main = "vellum:main"
 
 [build-system]
 requires = ["hatchling"]
