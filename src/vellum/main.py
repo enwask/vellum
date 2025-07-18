@@ -16,9 +16,10 @@ def main() -> None:
     documents = DocumentStore('documents')
     documents.put_document('assets/devito.pdf')
 
+    print("\n\nvellum\n")
     while True:
-        query = input("Enter a query (or 'exit' to quit): ")
-        if query.lower() == 'exit':
+        query = input("Enter a query (or 'q' to quit):\n> ")
+        if query.lower() == 'q':
             break
 
         results = documents.query_documents(query, limit=3)
