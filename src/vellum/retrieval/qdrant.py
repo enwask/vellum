@@ -140,8 +140,11 @@ class MultiVectorStore[EntryType: Mapping[str, object], MetadataType]:
         Adds multiple multi-vector embeddings to the collection with
         associated metadata.
         """
-        for i in range(0, len(vectors), batch_size):
-            l, r = i, min(i + batch_size, len(vectors))
+        num_points = (len(vectors) if isinstance(vectors, list)
+                      else len(next(iter(vectors.values()))))
+
+        for i in range(0, num_points, batch_size):
+            l, r = i, min(i + batch_size, num_points)
             batch_vectors = vectors[l:r] if isinstance(vectors, list) else {
                 k: v[l:r] for k, v in vectors.items()
             }
@@ -282,13 +285,14 @@ class DocumentStore(MultiVectorStore[Component, dict[Document, int]]):
             print(f"Document {document['uri']}@{document['version']} exists in the store.")
             return
 
-        print(f"Document {document['uri']} missing or outdated; reloading...")
+        print(f"Document {document['uri']} missing or outdated on remote")
 
         # Update collection metadata to reflect the new data version
         self.meta[document['uri']] = document['version']
         self.post_meta()
 
         # Delete all old entries with the given document URI
+        print("Flushing old entries...")
         self.delete_by_filter(
             filter=Filter(
                 must=FieldCondition(
@@ -301,6 +305,7 @@ class DocumentStore(MultiVectorStore[Component, dict[Document, int]]):
         # Embed page components and store them
         # TODO: We store a copy of the page tensor for each component because it's easy
         # but there has to be a way to associate multiple components with the single page tensor
+        print("Embedding components...")
         batch_vectors: dict[str, list[MultiVector]] = {}
         batch_components: list[Component] = []
         for page in document['pages']:
@@ -323,6 +328,7 @@ class DocumentStore(MultiVectorStore[Component, dict[Document, int]]):
             batch_components.extend(components)
 
         # Upsert the batch of components
+        print("Uploading components...")
         self.put_many(
             vectors=batch_vectors,
             datas=batch_components,

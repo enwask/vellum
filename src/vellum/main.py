@@ -107,9 +107,9 @@ def main() -> None:
 
         print(f"\nRetrieved relevant components:")
         for component in components:
-            print(f" - {component['document_uri']}::"
-                  f"{component['page_number']}\t"
-                  f"({component['uri']})")
+            print(f" - {component['document_uri']}:"
+                  f"{str(component['page_number']).zfill(3)}:"
+                  f"({component['uri'].split('/')[-1].split('.')[0]})")
 
         print("\nQuerying LLM...\n")
         message = {
