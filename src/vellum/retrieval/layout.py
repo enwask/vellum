@@ -16,7 +16,7 @@ from vellum.utils import config
 
 # https://github.com/pradhanhitesh/LayoutParser-Install?tab=readme-ov-file#11-downloading-detectron2-via-layout-parser  # noqa
 def load_model() -> Detectron2LayoutModel:
-    config_path = config.layout_parser_config
+    config_path = f'{config.layout_parser_model}/config'
 
     config_path_split = config_path.split('/')
     dataset_name = config_path_split[-3]
@@ -61,14 +61,8 @@ def load_model() -> Detectron2LayoutModel:
     return Detectron2LayoutModel(
         config_path=str(config_file_path),
         model_path=str(model_file_path),
-        extra_config=['MODEL.ROI_HEADS.SCORE_THRESH_TEST', 0.8],
-        label_map={
-            0: 'text',
-            1: 'title',
-            2: 'list',
-            3: 'table',
-            4: 'figure'
-        },
+        extra_config=config.layout_parser_config,
+        label_map=config.layout_parser_label_map,
     )
 
 
@@ -86,7 +80,9 @@ class LayoutElement(NamedTuple):
     type: str
 
 
-def parse_layout(image: Image) -> list[LayoutElement]:
+def parse_layout(image: Image,
+                 x_padding: float = 18,
+                 y_padding: float = 8) -> list[LayoutElement]:
     cv2_image = np.array(image.convert('RGB'))
     cv2_image = cv2_image[:, :, ::-1].copy()  # BGR for OpenCV
 
@@ -100,11 +96,16 @@ def parse_layout(image: Image) -> list[LayoutElement]:
         rect: Rectangle = block.block  # type: ignore
         type: str = block.type # type: ignore
 
+        # We pad the coordinates a little bit, clamping to the image size and rounding
+        x1 = int(max(0, rect.x_1 - x_padding))
+        y1 = int(max(0, rect.y_1 - y_padding))
+        x2 = int(min(image.width, rect.x_2 + x_padding))
+        y2 = int(min(image.height, rect.y_2 + y_padding))
         elements.append(LayoutElement(
-            x1=rect.x_1,
-            y1=rect.y_1,
-            x2=rect.x_2,
-            y2=rect.y_2,
+            x1=x1,
+            y1=y1,
+            x2=x2,
+            y2=y2,
             type=type,
         ))
 
