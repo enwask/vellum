@@ -1,10 +1,9 @@
 import torch
 from colpali_engine.models import ColQwen2_5, ColQwen2_5_Processor
-from torch import bfloat16, Tensor
 from PIL.Image import Image
+from torch import Tensor, bfloat16
 
 from vellum.utils.configuration import config
-
 
 embeddings_model = ColQwen2_5.from_pretrained(
     config.embeddings_model,
@@ -20,7 +19,8 @@ embeddings_processor = ColQwen2_5_Processor.from_pretrained(
 )
 
 
-def embed_queries(*queries: str, batch_size: int = 8) -> Tensor:
+# FIXME: batch size 1 so we don't accidentally resize the embedding tensors
+def embed_queries(*queries: str, batch_size: int = 1) -> list[Tensor]:
     """
     Embeds a list of text queries into a tensor of multi-vector embeddings.
     """
@@ -35,10 +35,10 @@ def embed_queries(*queries: str, batch_size: int = 8) -> Tensor:
             embeddings = embeddings_model(**batch_queries)
             all_embeddings.append(embeddings)
 
-    return torch.cat(all_embeddings)
+    return [vec[0] for vec in all_embeddings]
 
 
-def embed_images(*images: Image, batch_size: int = 8) -> Tensor:
+def embed_images(*images: Image, batch_size: int = 1) -> list[Tensor]:
     """
     Embeds a list of images into a tensor of multi-vector embeddings.
     """
@@ -53,4 +53,4 @@ def embed_images(*images: Image, batch_size: int = 8) -> Tensor:
             embeddings = embeddings_model(**batch_images)
             all_embeddings.append(embeddings)
 
-    return torch.cat(all_embeddings)
+    return [vec[0] for vec in all_embeddings]
