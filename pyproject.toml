@@ -10,6 +10,7 @@ requires-python = ">=3.13"
 dependencies = [
     "colpali-engine",
     "datasets>=4.0.0",
+    "detectron2",
     "dotenv>=0.9.9",
     "editables>=0.5",
     "einops>=0.8.1",
@@ -17,6 +18,9 @@ dependencies = [
     "hatchling>=1.27.0",
     "langchain-community>=0.3.27",
     "langchain-ollama>=0.3.5",
+    "layoutparser[layoutmodels]>=0.3.4",
+    "numpy>=2.3.1",
+    "opencv-python>=4.11.0.86",
     "pdf2image>=1.17.0",
     "pillow>=11.3.0",
     "psutil>=7.0.0",
@@ -35,3 +39,4 @@ build-backend = "hatchling.build"
 
 [tool.uv.sources]
 colpali-engine = { git = "https://github.com/illuin-tech/colpali.git" }
+detectron2 = { git = "https://github.com/facebookresearch/detectron2.git", rev = "main" }
