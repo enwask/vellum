@@ -2,7 +2,8 @@ import base64
 from io import BytesIO
 from PIL import Image
 
-from vellum.retrieval.documents import DocumentStore
+from vellum.retrieval.documents import load_document
+from vellum.retrieval import DocumentStore
 from vellum.llm import chat_model
 
 
@@ -35,9 +36,11 @@ def get_image(uri: str, use_llama_format: bool = True) \
 
 
 def main() -> None:
-    print("\n\n")  # yikes
+    print()  # yikes
     documents = DocumentStore('documents')
-    documents.put_document('assets/devito.pdf')
+
+    doc = load_document('assets/devito.pdf')
+    documents.put_document(doc)
 
     message_context = [
         {
@@ -56,19 +59,57 @@ def main() -> None:
         }
     ]
 
+    limit = 5  # Default limit for query results
+    threshold = 11.0  # Default threshold for relevance
     while True:
-        print("\nEnter a query (or 'q' to quit):")
+        print("\nEnter a query (or / + a command):\033[94m")
         query = input("> ")
-        if query.lower() == 'q':
-            break
+        print("\033[0m", end='')
 
-        pages = documents.query_documents(query, limit=1)
+        if not query.strip():
+            continue  # Skip empty queries
 
-        print(f"\nRetrieved relevant pages:")
-        for result_page in pages:
-            print(f" - {result_page['document_uri']}, "
-                  f"p.{result_page['page_number']}\t"
-                  f"({result_page['uri']})")
+        if query.startswith('/'):
+            args = query[1:].split()
+            cmd, args = args[0], args[1:]
+
+            match cmd:
+                case 'quit' | 'q':
+                    print("Exiting...")
+                    break
+
+                case 'limit' | 'l':
+                    if len(args) != 1 or not args[0].isdigit():
+                        print("Usage: /limit <number>")
+                        continue
+                    limit = int(args[0])
+                    print("Component retrieval limit set to", limit)
+                    continue
+
+                case 'threshold' | 'thresh' | 't':
+                    if len(args) != 1 or not args[0].replace('.', '', 1).isdigit():
+                        print("Usage: /threshold <number>")
+                        continue
+                    threshold = float(args[0])
+                    print(f"Component retrieval threshold set to {threshold}")
+                    continue
+
+                case _:
+                    print(f"Unknown command: {cmd}")
+                    continue
+
+        # Query the document store for relevant components
+        components = documents.query_documents(
+            query,
+            limit=limit,
+            threshold=threshold,
+        )
+
+        print(f"\nRetrieved relevant components:")
+        for component in components:
+            print(f" - {component['document_uri']}::"
+                  f"{component['page_number']}\t"
+                  f"({component['uri']})")
 
         print("\nQuerying LLM...\n")
         message = {
@@ -78,13 +119,14 @@ def main() -> None:
                     'type': "text",
                     'text': query,
                 },
-            ] + [get_image(page['uri'], use_llama_format=True)
-                 for page in pages],
+            ] + [get_image(component['uri'], use_llama_format=True)
+                 for component in components],
         }
 
         # Stream response tokens from the LLM
         print("\033[92m", end='')  # Start green
-        for token in chat_model.stream(message_context + [message]):
+        message_context += [message]
+        for token in chat_model.stream(message_context):
             print(token.text(), end='', flush=True)
         print("\033[0m")  # Reset color
 
