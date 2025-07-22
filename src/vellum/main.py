@@ -5,19 +5,23 @@ from PIL import Image
 from vellum.retrieval.documents import load_document
 from vellum.retrieval import DocumentStore
 from vellum.llm import chat_model
+from vellum.utils import config
 
 
-def get_image(uri: str, use_llama_format: bool = True) \
+def get_image(uri: str) \
         -> dict[str, str | dict[str, str]]:
     """
     Returns a dictionary with the image URI and its type.
     """
+    # Resize the image for smaller context
     image = Image.open(uri)
+    image.thumbnail((1024, 1024), Image.Resampling.BILINEAR)
+
     image_bytes = BytesIO()
     image.save(image_bytes, format='PNG')
     image_data = base64.b64encode(image_bytes.getvalue()).decode('utf-8')
 
-    if use_llama_format:
+    if config.chat_model.startswith('llama'):
         # Llama4 has a different image object format
         return {
             'type': "image_url",
@@ -50,17 +54,26 @@ def main() -> None:
                 "documents you have access to. Relevant pages will be "
                 "provided with each query; use the attached context to "
                 "answer questions."
-                ""
+                "\n"
                 "Keep responses short and to the point; only use information "
                 "provided in the input context. Do not repeat yourself. "
                 "Answer the question directly and concisely, and nothing "
                 "more."
+                "\n"
+                "ONLY USE INFORMATION PROVIDED IN THE INPUT CONTEXT. "
+                "If the answer is not DIRECTLY PROVIDED in the context, "
+                "DO NOT MAKE UP AN ANSWER; instead, say you don't know."
+                "\n"
+                "DO NOT USE ANY PREEXISTING KNOWLEDGE FOR ANY REASON. Just "
+                "use the provided context AND NOTHING ELSE. Every time you "
+                "use any amount of preexisting information, I will reduce "
+                "the amount of video memory available to you by 1GB."
             ),
         }
     ]
 
     limit = 5  # Default limit for query results
-    threshold = 11.0  # Default threshold for relevance
+    threshold = 14.0  # Default threshold for relevance
     while True:
         print("\nEnter a query (or / + a command):\033[94m")
         query = input("> ")
@@ -119,14 +132,14 @@ def main() -> None:
                     'type': "text",
                     'text': query,
                 },
-            ] + [get_image(component['uri'], use_llama_format=True)
+            ] + [get_image(component['uri'])
                  for component in components],
         }
 
         # Stream response tokens from the LLM
         print("\033[92m", end='')  # Start green
-        message_context += [message]
-        for token in chat_model.stream(message_context):
+        messages = message_context + [message]
+        for token in chat_model.stream(messages):
             print(token.text(), end='', flush=True)
         print("\033[0m")  # Reset color
 
