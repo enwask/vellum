@@ -83,6 +83,18 @@ class LayoutElement(NamedTuple):
     y2: float
     type: str
 
+    def width(self) -> float:
+        """
+        Returns the width of the element.
+        """
+        return self.x2 - self.x1
+
+    def height(self) -> float:
+        """
+        Returns the height of the element.
+        """
+        return self.y2 - self.y1
+
     def size(self) -> float:
         """
         Returns the area of the element.
@@ -99,26 +111,102 @@ class LayoutElement(NamedTuple):
                 self.x1 - epsilon <= other.x2 <= self.x2 + epsilon and
                 self.y1 - epsilon <= other.y2 <= self.y2 + epsilon)
 
+    @classmethod
+    def promote_types(cls, *types: str) -> str:
+        """
+        Returns a type obtained by merging the provided types.
+        Somewhat bullshit.
+        """
+        if 'figure' in types:
+            return 'figure'
+
+        if 'list' in types:
+            return 'list'
+
+        if 'text' in types:
+            return 'text'
+
+        return types[0]
+
+    @classmethod
+    def merge(cls, *elements: 'LayoutElement') -> 'LayoutElement':
+        """
+        Merges multiple elements into a single element that covers the bounding
+        box of all provided elements.
+
+        Elements are assumed to be of the same type.
+        """
+
+        return cls(
+            x1=min(e.x1 for e in elements),
+            y1=min(e.y1 for e in elements),
+            x2=max(e.x2 for e in elements),
+            y2=max(e.y2 for e in elements),
+            type=cls.promote_types(*(e.type for e in elements)),
+        )
+
 
 def remove_contained(elements: list[LayoutElement],
                      epsilon: float) -> list[LayoutElement]:
     """
-    Remove elements that are completely contained by another element.
+    Removes elements that are completely contained by another element.
+
+    Epsilon is relative to the max dimension of the containing element.
     """
+    # We can do this pretty naively because the number of elements is tiny
     elements = sorted(elements, key=LayoutElement.size, reverse=True)
     res: list[LayoutElement] = []
     for element in elements:
-        if not any(other.contains(element, epsilon=epsilon)
+        abs_epsilon = epsilon * max(element.width(), element.height())
+        if not any(other.contains(element, epsilon=abs_epsilon)
                    for other in res):
             res.append(element)
 
     return res
 
 
+def merge_similar(elements: list[LayoutElement],
+                   epsilon: float) -> list[LayoutElement]:
+    """
+    Merges elements that cover similar areas, within epsilon. If two elements
+    are considered the same, they are replaced with a full cover of both.
+
+    Epsilon is relative to the max dimension of any element being considered.
+
+    Only merges compatible types; see LayoutElement._merge_types.
+    """
+    def _similar(a: LayoutElement, b: LayoutElement) -> bool:
+        abs_epsilon = epsilon * max(a.width(), a.height(),
+                                    b.width(), b.height())
+        dist = abs(a.x1 - b.x1) + abs(a.y1 - b.y1) + abs(a.x2 - b.x2) + abs(a.y2 - b.y2)
+        return dist < abs_epsilon
+
+    # Again, we do this naively because the number of elements is small
+    i = 0
+    while i < len(elements):
+        a = elements[i]
+        j = i + 1
+
+        sim: list[LayoutElement] = []
+        while j < len(elements):
+            b = elements[j]
+            if _similar(a, b):
+                # Merge the two elements
+                sim.append(elements.pop(j))
+            else:
+                j += 1
+        if sim:
+            elements[i] = LayoutElement.merge(a, *sim)
+        i += 1
+
+    return elements
+
+
 def parse_layout(image: Image,
                  x_padding: float = 20,
                  y_padding: float = 20,
-                 containment_epsilon: float = 60.0) -> list[LayoutElement]:
+                 merge_epsilon: float = .20,
+                 containment_epsilon: float = .10) -> list[LayoutElement]:
     cv2_image = np.array(image.convert('RGB'))
     cv2_image = cv2_image[:, :, ::-1].copy()  # BGR for OpenCV
 
@@ -151,6 +239,7 @@ def parse_layout(image: Image,
                 type=type,
             ))
 
-    # Remove elements that are completely contained by another element
+    # Merge similar elements and remove fully contained elements
+    elements = merge_similar(elements, epsilon=merge_epsilon)
     elements = remove_contained(elements, epsilon=containment_epsilon)
     return elements
