@@ -292,7 +292,7 @@ class DocumentStore(MultiVectorStore[Component, dict[Document, int]]):
         self.post_meta()
 
         # Delete all old entries with the given document URI
-        print("Flushing old entries...")
+        print("Removing old entries from remote...")
         self.delete_by_filter(
             filter=Filter(
                 must=FieldCondition(
@@ -305,7 +305,7 @@ class DocumentStore(MultiVectorStore[Component, dict[Document, int]]):
         # Embed page components and store them
         # TODO: We store a copy of the page tensor for each component because it's easy
         # but there has to be a way to associate multiple components with the single page tensor
-        print("Embedding components...")
+        print("Generating page/component embeddings...")
         batch_vectors: dict[str, list[MultiVector]] = {}
         batch_components: list[Component] = []
         for page in document['pages']:

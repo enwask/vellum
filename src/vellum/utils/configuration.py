@@ -48,7 +48,7 @@ class Config:
                     4: 'figure',
                 },
                 config=[
-                    'MODEL.ROI_HEADS.SCORE_THRESH_TEST', .3,
+                    'MODEL.ROI_HEADS.SCORE_THRESH_TEST', .2,
                 ],
             ),
 
@@ -82,6 +82,6 @@ class Config:
     @property
     def data_version(self) -> int:
         # Versioning for parsed document metadata
-        return 28
+        return 40
 
 config = Config()
