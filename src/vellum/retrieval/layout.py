@@ -115,8 +115,11 @@ class LayoutElement(NamedTuple):
     def promote_types(cls, *types: str) -> str:
         """
         Returns a type obtained by merging the provided types.
-        Somewhat bullshit.
+        Largely meaningless.
         """
+        if 'math' in types:
+            return 'math'
+
         if 'figure' in types:
             return 'figure'
 
@@ -150,6 +153,8 @@ def remove_contained(elements: list[LayoutElement],
                      epsilon: float) -> list[LayoutElement]:
     """
     Removes elements that are completely contained by another element.
+    If certain types (e.g. math) are present within the element, its type
+    may be promoted to that type.
 
     Epsilon is relative to the max dimension of the containing element.
     """
@@ -158,8 +163,19 @@ def remove_contained(elements: list[LayoutElement],
     res: list[LayoutElement] = []
     for element in elements:
         abs_epsilon = epsilon * max(element.width(), element.height())
-        if not any(other.contains(element, epsilon=abs_epsilon)
-                   for other in res):
+        any_contained = False
+        for i, containing in enumerate(res):
+            if containing.contains(element, epsilon=abs_epsilon):
+                any_contained = True
+
+                # If the containing element is of a different type, promote it
+                if containing.type != element.type:
+                    res[i] = LayoutElement.merge(containing, element)
+
+                break
+
+        if not any_contained:
+            # If the element is not contained, add it to the result
             res.append(element)
 
     return res
