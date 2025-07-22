@@ -126,7 +126,7 @@ def load_page(document_uri: str,
 # FIXME: This should probably be moved to DocumentStore, and maybe store images in Qdrant?
 def load_document(document_uri: str,
                   dpi: int = 300,
-                  workers: int = 4,
+                  workers: int = 2,
                   **kwargs: Any) -> Document:
     """
     Loads the document and splits it into page images, writing them to a
