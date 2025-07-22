@@ -1,3 +1,4 @@
+from sqlalchemy import all_
 import torch
 from colpali_engine.models import ColQwen2_5, ColQwen2_5_Processor
 from PIL.Image import Image
@@ -19,8 +20,18 @@ embeddings_processor = ColQwen2_5_Processor.from_pretrained(
 )
 
 
-# FIXME: batch size 1 so we don't accidentally resize the embedding tensors
-def embed_queries(*queries: str, batch_size: int = 1) -> list[Tensor]:
+def _remove_zero_vecs(tensor: Tensor) -> Tensor:
+    """
+    Removes zero vectors from the end of a tensor which may occur from batching
+    variably sized inputs.
+    """
+    while tensor.size(0) > 0 and torch.all(tensor[-1] == 0):
+        tensor = tensor[:-1]
+
+    return tensor
+
+
+def embed_queries(*queries: str, batch_size: int = 8) -> list[Tensor]:
     """
     Embeds a list of text queries into a tensor of multi-vector embeddings.
     """
@@ -32,13 +43,15 @@ def embed_queries(*queries: str, batch_size: int = 1) -> list[Tensor]:
             .to(embeddings_model.device)
 
         with torch.no_grad():
-            embeddings = embeddings_model(**batch_queries)
-            all_embeddings.append(embeddings)
+            # Turns only outer dimension into a list
+            embeddings = list(embeddings_model(**batch_queries))
+            all_embeddings.extend(_remove_zero_vecs(tensor)
+                                  for tensor in embeddings)
 
-    return [vec[0] for vec in all_embeddings]
+    return all_embeddings
 
 
-def embed_images(*images: Image, batch_size: int = 1) -> list[Tensor]:
+def embed_images(*images: Image, batch_size: int = 8) -> list[Tensor]:
     """
     Embeds a list of images into a tensor of multi-vector embeddings.
     """
@@ -50,7 +63,9 @@ def embed_images(*images: Image, batch_size: int = 1) -> list[Tensor]:
             .to(embeddings_model.device)
 
         with torch.no_grad():
-            embeddings = embeddings_model(**batch_images)
-            all_embeddings.append(embeddings)
+            # Turns only outer dimension into a list
+            embeddings = list(embeddings_model(**batch_images))
+            all_embeddings.extend(_remove_zero_vecs(tensor)
+                                  for tensor in embeddings)
 
-    return [vec[0] for vec in all_embeddings]
+    return all_embeddings
