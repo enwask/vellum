@@ -1,3 +1,4 @@
+from ollama import embeddings
 from sqlalchemy import all_
 import torch
 from colpali_engine.models import ColQwen2_5, ColQwen2_5_Processor
@@ -6,18 +7,25 @@ from torch import Tensor, bfloat16
 
 from vellum.utils.configuration import config
 
-embeddings_model = ColQwen2_5.from_pretrained(
-    config.embeddings_model,
-    torch_dtype=bfloat16,
-    device_map='cuda:0',
-    attn_implementation='flash_attention_2',
-).eval()
+embeddings_model: ColQwen2_5 = None  # type: ignore
+embeddings_processor: ColQwen2_5_Processor = None  # type: ignore
 
+def load_model() -> None:
+    global embeddings_model, embeddings_processor
+    if embeddings_model is not None:
+        return
 
-embeddings_processor = ColQwen2_5_Processor.from_pretrained(
-    config.embeddings_model,
-    use_fast=True,
-)
+    embeddings_model = ColQwen2_5.from_pretrained(
+        config.embeddings_model,
+        torch_dtype=bfloat16,
+        device_map='cuda:0',
+        attn_implementation='flash_attention_2',
+    ).eval()
+
+    embeddings_processor = ColQwen2_5_Processor.from_pretrained(
+        config.embeddings_model,
+        use_fast=True,
+    )  # type: ignore
 
 
 def _remove_zero_vecs(tensor: Tensor) -> Tensor:
@@ -35,6 +43,8 @@ def embed_queries(*queries: str, batch_size: int = 8) -> list[Tensor]:
     """
     Embeds a list of text queries into a tensor of multi-vector embeddings.
     """
+    load_model()
+
     all_embeddings = []
     for i in range(0, len(queries), batch_size):
         batch = queries[i:i+batch_size]
@@ -55,6 +65,8 @@ def embed_images(*images: Image, batch_size: int = 8) -> list[Tensor]:
     """
     Embeds a list of images into a tensor of multi-vector embeddings.
     """
+    load_model()
+
     all_embeddings = []
     for i in range(0, len(images), batch_size):
         batch = images[i:i+batch_size]
