@@ -219,8 +219,8 @@ def merge_similar(elements: list[LayoutElement],
 
 
 def parse_layout(image: Image,
-                 x_padding: float = 20,
-                 y_padding: float = 20,
+                 x_padding: float = 60,
+                 y_padding: float = 40,
                  merge_epsilon: float = .20,
                  containment_epsilon: float = .10) -> list[LayoutElement]:
     cv2_image = np.array(image.convert('RGB'))

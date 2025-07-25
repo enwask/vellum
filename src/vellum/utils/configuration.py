@@ -15,7 +15,6 @@ class LayoutParser(NamedTuple):
         return f"LayoutParser(model={self.model}, labels={self.label_map})"
 
 
-
 class Config:
     # Placeholder for possible dynamic configuration in the future
     @property
@@ -28,8 +27,7 @@ class Config:
 
     @property
     def chat_model(self) -> str:
-        # return 'qwen3:32b'
-        return 'llama4:latest'
+        return 'gpt-4o-mini'
 
     @cached_property
     def layout_parsers(self) -> list[LayoutParser]:
@@ -41,7 +39,7 @@ class Config:
             LayoutParser(
                 model='lp://PubLayNet/mask_rcnn_X_101_32x8d_FPN_3x',
                 label_map={
-                    0: 'text',
+                    0: None,
                     1: None,
                     2: None,
                     3: 'table',
@@ -52,12 +50,12 @@ class Config:
                 ],
             ),
 
-            # PubLayNet lists + titles (higher threshold)
+            # PubLayNet lists (higher threshold)
             LayoutParser(
                 model='lp://PubLayNet/mask_rcnn_X_101_32x8d_FPN_3x',
                 label_map={
                     0: None,
-                    1: 'title',
+                    1: None,
                     2: 'list',
                     3: None,
                     4: None,
@@ -74,7 +72,7 @@ class Config:
                     1: 'math',
                 },
                 config=[
-                    'MODEL.ROI_HEADS.SCORE_THRESH_TEST', .4,
+                    'MODEL.ROI_HEADS.SCORE_THRESH_TEST', .8,
                 ],
             )
         ]
@@ -82,6 +80,6 @@ class Config:
     @property
     def data_version(self) -> int:
         # Versioning for parsed document metadata
-        return 40
+        return 56
 
 config = Config()

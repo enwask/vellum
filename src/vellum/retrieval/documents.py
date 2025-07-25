@@ -114,6 +114,14 @@ def load_page(document_uri: str,
     # Save the annotated debug image
     debug_image.save(page_dir / 'page.annotated.png', format='PNG')
 
+    # Add an additional component representing the whole page
+    components['page'] = [Component(
+        document_uri=document_uri,
+        page_number=page_number,
+        uri=str(page_uri),
+        type='page',
+    )]
+
     # Create the page object
     return Page(
         document_uri=document_uri,
@@ -126,7 +134,7 @@ def load_page(document_uri: str,
 # FIXME: This should probably be moved to DocumentStore, and maybe store images in Qdrant?
 def load_document(document_uri: str,
                   dpi: int = 300,
-                  workers: int = 2,
+                  workers: int = 16,
                   **kwargs: Any) -> Document:
     """
     Loads the document and splits it into page images, writing them to a
@@ -159,6 +167,7 @@ def load_document(document_uri: str,
             print(f"Failed to load existing metadata for {doc_path}: {e}")
 
     # Otherwise, process the document
+    print(f"Loading {doc_path} on {workers} workers...")
     data_dir.mkdir(parents=True, exist_ok=True)
     images = pdf2image.convert_from_path(
         pdf_path=document_uri,
@@ -186,7 +195,7 @@ def load_document(document_uri: str,
         ))
 
     # Form an annotated PDF containing all debug images
-    debug_pdf_path = data_dir / f'{doc_path.stem}_annotated.pdf'
+    debug_pdf_path = data_dir / f'{doc_path.stem}.annotated.pdf'
     debug_images = [Image.open(f"{page['uri'].rsplit('.', 1)[0]}.annotated.png") for page in pages]
     debug_images[0].save(
         debug_pdf_path,
