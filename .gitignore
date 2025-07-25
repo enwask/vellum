@@ -14,3 +14,6 @@ wheels/
 
 # Vellum models and document metadata
 **/.vellum/
+
+# Documents I probably am not legally allowed to upload
+assets/george_thesis.pdf
