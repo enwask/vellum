@@ -1,10 +1,12 @@
 import base64
 from io import BytesIO
+import os
+
 from PIL import Image
 
-from vellum.retrieval.documents import load_document
-from vellum.retrieval import DocumentStore
 from vellum.llm import chat_model
+from vellum.retrieval import DocumentStore
+from vellum.retrieval.documents import Document, load_document
 from vellum.utils import config
 
 
@@ -43,8 +45,15 @@ def main() -> None:
     print()  # yikes
     documents = DocumentStore('documents')
 
-    doc = load_document('assets/devito.pdf')
-    documents.put_document(doc)
+    docs: list[Document] = []
+    for uri in [
+        'assets/devito.pdf',
+        'assets/george_thesis.pdf'
+    ]:
+        docs.append(load_document(uri))
+
+    for doc in docs:
+        documents.put_document(doc)
 
     message_context = [
         {
@@ -68,6 +77,14 @@ def main() -> None:
                 "use the provided context AND NOTHING ELSE. Every time you "
                 "use any amount of preexisting information, I will reduce "
                 "the amount of video memory available to you by 1GB."
+                "\n"
+                "IF THE ANSWER IS NOT DIRECTLY SUPPORTED BY THE CONTEXT YOU "
+                "GIVEN, YOU WILL BE PENALIZED FOR ANSWERING IT IN ANY WAY. "
+                "Do not give background or general information, just answer "
+                "the SPECIFIC question DIRECTLY and CONCISELY."
+                "\n"
+                "KEEP YOUR ANSWERS BRIEF AND TO THE POINT. EVERY EXTRA TOKEN "
+                "YOU USE, I WILL DECREASE YOUR PARAMETERS BY 1 BILLION."
             ),
         }
     ]
@@ -75,7 +92,7 @@ def main() -> None:
     limit = 5  # Default limit for query results
     threshold = 14.0  # Default threshold for relevance
     while True:
-        print("\nEnter a query (or / + a command):\033[94m")
+        print("\nEnter a query (or / + a command):\033[93m")
         query = input("> ")
         print("\033[0m", end='')
 
@@ -112,17 +129,21 @@ def main() -> None:
                     continue
 
         # Query the document store for relevant components
-        components = documents.query_documents(
-            query,
-            limit=limit,
-            threshold=threshold,
+        components = sorted(
+            documents.query_documents(
+                query,
+                limit=limit,
+                threshold=threshold,
+            ),
+            key=lambda x: x[1],
         )
 
         print(f"\nRetrieved relevant components:")
-        for component in components:
+        for component, score in components:
             print(f" - {component['document_uri']}:"
                   f"{str(component['page_number']).zfill(3)}:"
-                  f"({component['uri'].split('/')[-1].split('.')[0]})")
+                  f"({component['uri'].split('/')[-1].split('.')[0]})"
+                  f"   \t[ {score:.2f} ]")
 
         print("\nQuerying LLM...\n")
         message = {
@@ -133,14 +154,20 @@ def main() -> None:
                     'text': query,
                 },
             ] + [get_image(component['uri'])
-                 for component in components],
+                 for component, _ in components],
         }
 
         # Stream response tokens from the LLM
         print("\033[92m", end='')  # Start green
-        messages = message_context + [message]
-        for token in chat_model.stream(messages):
+        message_context.append(message)
+        for token in chat_model.stream(message_context + [message]):
             print(token.text(), end='', flush=True)
+
+        # with chat_model.chat.completions.stream(
+        #     messages=message_context,
+        #     model=os.environ['OPENAI_MODEL'],
+        # ) as stream:
+        #     for event in stream:
         print("\033[0m")  # Reset color
 
 

@@ -1,21 +1,18 @@
 import os
+
 from dotenv import find_dotenv, load_dotenv
-from langchain_ollama import ChatOllama
+from langchain_openai import AzureChatOpenAI
 
 from vellum.utils import config
 
-
 load_dotenv(find_dotenv())
-OLLAMA_URL = os.environ['OLLAMA_URL']
-OLLAMA_API_KEY = os.environ['OLLAMA_API_KEY']
+OPENAI_ENDPOINT = os.environ['OPENAI_ENDPOINT']
+OPENAI_API_KEY = os.environ['OPENAI_API_KEY']
+OPENAI_API_VERSION = os.environ['OPENAI_API_VERSION']
 
-chat_model = ChatOllama(
-    base_url=OLLAMA_URL,
-    client_kwargs={
-        'headers': {
-            'Authorization': f'Bearer {OLLAMA_API_KEY}',
-            'Content-Type': 'application/json',
-        },
-    },
+chat_model = AzureChatOpenAI(
+    api_version=OPENAI_API_VERSION,
+    azure_endpoint=OPENAI_ENDPOINT,
+    temperature=0,
     model=config.chat_model,
 )

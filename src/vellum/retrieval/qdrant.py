@@ -22,7 +22,7 @@ from qdrant_client.models import (
     Prefetch,
 )
 
-from vellum.retrieval.documents import Component, Document, Page
+from vellum.retrieval.documents import Component, Document
 from vellum.retrieval.embeddings import embed_images, embed_queries
 from vellum.utils import config
 
@@ -135,7 +135,7 @@ class MultiVectorStore[EntryType: Mapping[str, object], MetadataType]:
     def put_many(self,
                  vectors: list[MultiVector] | dict[str, list[MultiVector]],
                  datas: list[EntryType],
-                 batch_size: int = 32) -> None:
+                 batch_size: int = 8) -> None:
         """
         Adds multiple multi-vector embeddings to the collection with
         associated metadata.
@@ -161,19 +161,21 @@ class MultiVectorStore[EntryType: Mapping[str, object], MetadataType]:
     def query(self,
               vector: MultiVector,
               limit: int = 8,
-              threshold: float | None = None) -> list[EntryType]:
+              threshold: float | None = None) -> list[tuple[EntryType, float]]:
         """
         Performs a similarity search in a single vector collection.
         """
-        result = qdrant_client.query_points(
+        query_result = qdrant_client.query_points(
             collection_name=self.name,
             query=vector,
             limit=limit,
             score_threshold=threshold,
         )
 
-        datas: list[EntryType] = [point.payload for point in result.points]  # type: ignore
-        return datas
+        result: list[tuple[EntryType, float]] = [
+            (point.payload, point.score) for point in query_result.points  # type: ignore
+        ]
+        return result
 
     def query_by(self,
                  by: str,
@@ -182,7 +184,7 @@ class MultiVectorStore[EntryType: Mapping[str, object], MetadataType]:
                  limit: int = 8,
                  prefetch: dict[str, MultiVector] | None = None,
                  prefetch_limit: int = 32,
-                 threshold: float | None = None) -> list[EntryType]:
+                 threshold: float | None = None) -> list[tuple[EntryType, float]]:
         """
         Performs a similarity search by a specific vector category with
         optional prefetching by other categories.
@@ -206,13 +208,15 @@ class MultiVectorStore[EntryType: Mapping[str, object], MetadataType]:
         )
 
         # Can't pass a QueryRequest to unbatched query for some reason
-        result = qdrant_client.query_batch_points(
+        query_result = qdrant_client.query_batch_points(
             collection_name=self.name,
             requests=[query_req],
         )[0]
-        datas: list[EntryType] = [point.payload for point in result.points]  # type: ignore
+        result: list[tuple[EntryType, float]] = [
+            (point.payload, point.score) for point in query_result.points  # type: ignore
+        ]
 
-        return datas
+        return result
 
     def _delete(self, selector: PointsSelector) -> None:
         """
@@ -339,7 +343,7 @@ class DocumentStore(MultiVectorStore[Component, dict[Document, int]]):
                         query: str,
                         limit: int = 8,
                         prefetch_limit: int = 32,
-                        threshold: float | None = None) -> list[Component]:
+                        threshold: float | None = None) -> list[tuple[Component, float]]:
         """
         Queries the document store for documents matching the given query.
         """
